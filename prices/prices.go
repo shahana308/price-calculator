@@ -1,6 +1,11 @@
 package prices
 
-import "fmt"
+import (
+	"bufio"
+	"fmt"
+	"os"
+	"strconv"
+)
 
 type TaxIncludedPriceJob struct {
 	TaxRate          float64
@@ -8,13 +13,54 @@ type TaxIncludedPriceJob struct {
 	TaxIncludedPrice map[string]float64
 }
 
-func (job TaxIncludedPriceJob) Process() {
-	result := make(map[string]float64)
+func (job *TaxIncludedPriceJob) LoadData() {
+	file, err := os.Open("prices.txt")
 
-	for _, price := range job.InputPrice {
-		result[fmt.Sprintf("%.2f", price)] = price * (1 + job.TaxRate)
+	if err != nil {
+		fmt.Println("Error opening file:", err)
+		return
 	}
 
+	scanner := bufio.NewScanner(file)
+
+	var lines []string
+
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+
+	err = scanner.Err()
+	if err != nil {
+		fmt.Println("Error reading file:", err)
+		file.Close()
+		return
+	}
+	file.Close()
+
+	prices := make([]float64, len(lines))
+	for lineIndex, line := range lines {
+		floatPrice, err := strconv.ParseFloat(line, 64)
+
+		if err != nil {
+			fmt.Println("Converting string to float failed:", err)
+			file.Close()
+			return
+		}
+
+		prices[lineIndex] = floatPrice
+	}
+
+	job.InputPrice = prices
+}
+
+func (job *TaxIncludedPriceJob) Process() {
+	job.LoadData()
+	result := make(map[string]string)
+
+	for _, price := range job.InputPrice {
+		taxIncludedString := price * (1 + job.TaxRate)
+		result[fmt.Sprintf("%.2f", price)] = fmt.Sprintf("%.2f", taxIncludedString)
+	}
 	fmt.Println(result)
 }
 
